@@ -1,12 +1,18 @@
 pipeline {
     agent any
     environment {
-        PROJECT_ID    = "useful-variety-470306-n5"
-        GCP_KEY       = credentials('GCP_CREDS') // Your service account key in Jenkins
-        APP_FOLDER    = "Deploy_App_In_AppEngine/my-first-service"
-        VERSION       = "v${env.BUILD_ID}"       // Auto version per build
+        PROJECT_ID = "useful-variety-470306-n5"
+        GCP_KEY = credentials('GCP_CREDS')
+        SERVICE_PATH = "Deploy_App_In_AppEngine/Deploy_App_In_AppEngine/my-first-service"
+        VERSION = "v${BUILD_NUMBER}"
     }
     stages {
+
+        stage('Checkout Code') {
+            steps {
+                checkout scm
+            }
+        }
 
         stage('Authenticate GCP') {
             steps {
@@ -22,19 +28,19 @@ pipeline {
 
         stage('Deploy App Engine Default Service') {
             steps {
-                script {
-                    echo "Deploying default service from ${APP_FOLDER} with version ${VERSION}..."
-                    sh "gcloud app deploy ${APP_FOLDER}/app.yaml --version=${VERSION} --quiet"
-                }
+                echo "Deploying default service from ${SERVICE_PATH} with version ${VERSION}..."
+                sh """
+                    gcloud app deploy ${SERVICE_PATH}/app.yaml --version=${VERSION} --quiet
+                """
             }
         }
 
         stage('Verify Deployment') {
             steps {
-                script {
-                    echo "App deployed. Access your app at:"
-                    sh "gcloud app browse --no-launch-browser"
-                }
+                echo "Deployment finished. You can view the service at:"
+                sh """
+                    gcloud app browse
+                """
             }
         }
     }
