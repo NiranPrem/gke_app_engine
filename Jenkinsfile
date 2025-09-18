@@ -1,12 +1,13 @@
 pipeline {
     agent any
     environment {
-        PROJECT_ID = "useful-variety-470306-n5"
-        GCP_KEY    = credentials('GCP_CREDS')  // Jenkins secret JSON key
-        APP_FOLDER = "Deploy_App_In_AppEngine/new"  // Path to app.yaml
+        PROJECT_ID    = "useful-variety-470306-n5"
+        GCP_KEY       = credentials('GCP_CREDS') // Your service account key in Jenkins
+        APP_FOLDER    = "Deploy_App_In_AppEngine/my-first-service"
+        VERSION       = "v${env.BUILD_ID}"       // Auto version per build
     }
-
     stages {
+
         stage('Authenticate GCP') {
             steps {
                 withCredentials([file(credentialsId: 'GCP_CREDS', variable: 'GCP_KEY')]) {
@@ -22,45 +23,19 @@ pipeline {
         stage('Deploy App Engine Default Service') {
             steps {
                 script {
-                    def version = "v${new Date().format('yyyyMMddHHmmss')}"
-                    echo "Deploying default service with version ${version}..."
-
-                    sh """
-                        gcloud app deploy ${APP_FOLDER}/app.yaml --version=${version} --quiet
-                        gcloud app services set-traffic default --splits ${version}=1.0 --quiet
-                    """
+                    echo "Deploying default service from ${APP_FOLDER} with version ${VERSION}..."
+                    sh "gcloud app deploy ${APP_FOLDER}/app.yaml --version=${VERSION} --quiet"
                 }
             }
         }
 
-        stage('Cleanup Old Versions') {
+        stage('Verify Deployment') {
             steps {
                 script {
-                    // Keep only the latest 3 versions
-                    def keep = 3
-                    def versions = sh(
-                        script: "gcloud app versions list --service=default --sort-by=~version.id --format='value(version.id)'",
-                        returnStdout: true
-                    ).trim().split("\\n")
-
-                    if (versions.size() > keep) {
-                        def toDelete = versions[keep..-1].join(" ")
-                        echo "Deleting old versions: ${toDelete}"
-                        sh "gcloud app versions delete ${toDelete} --service=default --quiet"
-                    } else {
-                        echo "No old versions to delete."
-                    }
+                    echo "App deployed. Access your app at:"
+                    sh "gcloud app browse --no-launch-browser"
                 }
             }
-        }
-    }
-
-    post {
-        success {
-            echo "✅ Deployment completed successfully!"
-        }
-        failure {
-            echo "❌ Deployment failed!"
         }
     }
 }
